@@ -1,5 +1,14 @@
 {
-  "dependencies": {
-    "sharp": "^0.32.6"
+  "name": "ai-image-resizer",
+  "version": "1.0.0",
+  "description": "Image resizing service for ESP32 AI picture frame",
+  "main": "api/resize-image.js",
+  "scripts": {
+    "dev": "vercel dev",
+    "build": "echo 'No build step required'"
+  },
+  "dependencies": {},
+  "engines": {
+    "node": "18.x"
   }
 }
