@@ -2,12 +2,16 @@
   "name": "ai-image-resizer",
   "version": "1.0.0",
   "description": "Image resizing service for ESP32 AI picture frame",
-  "main": "api/resize-image.js",
+  "main": "server.js",
+  "type": "module",
   "scripts": {
-    "dev": "vercel dev",
-    "build": "echo 'No build step required'"
+    "start": "node server.js",
+    "dev": "node server.js"
   },
-  "dependencies": {},
+  "dependencies": {
+    "express": "^4.18.2",
+    "cors": "^2.8.5"
+  },
   "engines": {
     "node": "18.x"
   }
