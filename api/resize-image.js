@@ -13,26 +13,58 @@ export default async function handler(req, res) {
   }
 
   try {
-    console.log('Received image processing request');
+    console.log('Received AI image request');
     
-    // Get image data from request body
-    const imageData = req.body;
+    // Get prompt from ESP32
+    const { prompt } = req.body;
     
-    if (!imageData || imageData.length === 0) {
-      return res.status(400).json({ error: 'No image data provided' });
+    if (!prompt) {
+      return res.status(400).json({ error: 'No prompt provided' });
     }
 
-    console.log('Image data size:', imageData.length, 'bytes');
+    console.log('Processing prompt:', prompt);
+
+    // Call Stability AI API
+    const formData = new FormData();
+    formData.append('prompt', prompt);
+    formData.append('aspect_ratio', '1:1');
+    formData.append('width', '32');
+    formData.append('height', '32');
+    formData.append('output_format', 'jpeg');
+
+    console.log('Calling Stability AI...');
     
-    // Simple pixel sampling approach (since we can't use sharp on Vercel Edge)
-    // Sample every Nth byte to get 768 values (256 pixels * 3 colors)
+    const stabilityResponse = await fetch('https://api.stability.ai/v2beta/stable-image/generate/core', {
+      method: 'POST',
+      headers: {
+        'Authorization': 'Bearer sk-sMtfZJ36PpX7GgvgF3jn8dN772qImkFKAbZCDqxHwRNNGL82',
+        'Accept': 'image/*'
+      },
+      body: formData
+    });
+
+    if (!stabilityResponse.ok) {
+      console.error('Stability AI error:', stabilityResponse.status);
+      return res.status(500).json({ error: 'Stability AI request failed' });
+    }
+
+    console.log('Got image from Stability AI, processing...');
+
+    // Get image as buffer
+    const imageBuffer = await stabilityResponse.arrayBuffer();
+    const imageBytes = new Uint8Array(imageBuffer);
+    
+    console.log('Image size:', imageBytes.length, 'bytes');
+
+    // Sample the image data to create 16x16 representation
     const targetPixels = 768; // 16x16 * 3 colors
-    const step = Math.floor(imageData.length / targetPixels);
+    const sampleRate = Math.floor(imageBytes.length / (targetPixels * 2));
     const pixels = [];
     
+    // Skip JPEG header (first 100 bytes)
     let sampleCount = 0;
-    for (let i = 100; i < imageData.length && pixels.length < targetPixels; i += step) {
-      const byte = imageData[i];
+    for (let i = 100; i < imageBytes.length && pixels.length < targetPixels; i += sampleRate) {
+      const byte = imageBytes[i];
       // Filter for reasonable color values
       if (byte >= 20 && byte <= 235) {
         pixels.push(byte);
@@ -46,17 +78,18 @@ export default async function handler(req, res) {
       pixels.push(pixels[sourceIndex] || 100);
     }
     
-    console.log('Generated pixel array:', pixels.length, 'values');
+    console.log('Generated', pixels.length, 'pixel values');
     
     return res.status(200).json({ 
       pixels: pixels,
       width: 16,
       height: 16,
-      message: 'Image processed successfully'
+      message: 'AI image processed successfully',
+      originalSize: imageBytes.length
     });
     
   } catch (error) {
-    console.error('Image processing error:', error);
+    console.error('Processing error:', error);
     return res.status(500).json({ 
       error: 'Image processing failed',
       details: error.message 
